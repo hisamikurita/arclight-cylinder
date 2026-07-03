@@ -1,4 +1,5 @@
 export * from "./constants";
+export * from "./dof";
 export * from "./geometry";
 export * from "./core";
 export * from "./Gallery";

@@ -22,9 +22,17 @@ export const setupReflection = (): void => {
 	scene.add(floorMesh);
 };
 
-export const renderWithReflection = (): void => {
+export const renderWithReflection = (
+	renderTarget?: THREE.WebGLRenderTarget | null,
+): void => {
 	const gl = renderer.getContext();
 	renderer.autoClear = false;
+
+	// レンダーターゲットを設定
+	const previousRenderTarget = renderer.getRenderTarget();
+	if (renderTarget !== undefined) {
+		renderer.setRenderTarget(renderTarget);
+	}
 
 	const originalY = galleryGroup.position.y;
 	const originalScaleY = galleryGroup.scale.y;
@@ -69,4 +77,9 @@ export const renderWithReflection = (): void => {
 	// 元に戻す
 	scene.background = originalBackground;
 	renderer.autoClear = true;
+
+	// レンダーターゲットを復元
+	if (renderTarget !== undefined) {
+		renderer.setRenderTarget(previousRenderTarget);
+	}
 };

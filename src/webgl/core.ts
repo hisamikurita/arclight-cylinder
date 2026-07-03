@@ -30,11 +30,12 @@ export const initRenderer = (container: HTMLElement = document.body): void => {
 	container.appendChild(renderer.domElement);
 };
 
-export const handleResize = (): void => {
+export const handleResize = (onResize?: () => void): void => {
 	window.addEventListener("resize", () => {
 		camera.aspect = window.innerWidth / window.innerHeight;
 		camera.updateProjectionMatrix();
 		renderer.setSize(window.innerWidth, window.innerHeight);
+		onResize?.();
 	});
 };
 

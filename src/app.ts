@@ -3,7 +3,9 @@ import {
 	createGallery,
 	handleResize,
 	initRenderer,
-	renderWithReflection,
+	renderWithDOF,
+	resizeDOF,
+	setupDOF,
 	setupGalleryRotation,
 	setupGUI,
 	setupHelpers,
@@ -38,11 +40,14 @@ setupGalleryRotation();
 // 鏡面反射をセットアップ
 setupReflection();
 
+// 被写界深度をセットアップ
+setupDOF();
+
 // GUIをセットアップ
 setupGUI();
 
 // リサイズ対応
-handleResize();
+handleResize(resizeDOF);
 
 // アニメーション開始
 startAnimationLoop(
@@ -50,5 +55,5 @@ startAnimationLoop(
 		updateGalleryRotation();
 		updateParallax(planes);
 	},
-	renderWithReflection,
+	renderWithDOF,
 );

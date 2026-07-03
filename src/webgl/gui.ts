@@ -2,6 +2,7 @@ import GUI from "lil-gui";
 import { scene } from "./core";
 import * as THREE from "three";
 import { FOG, PLANE, SCENE } from "./constants";
+import { DOF_PARAMS, updateDOFParams } from "./dof";
 import { updateGallerySideColor } from "./Gallery";
 
 export const setupGUI = (): GUI => {
@@ -63,6 +64,29 @@ export const setupGUI = (): GUI => {
 	});
 
 	planeFolder.open();
+
+	// DOF folder
+	const dofFolder = gui.addFolder("DOF");
+
+	const dofParams = {
+		focus: DOF_PARAMS.focus,
+		aperture: DOF_PARAMS.aperture,
+		maxblur: DOF_PARAMS.maxblur,
+	};
+
+	dofFolder.add(dofParams, "focus", 0, 20, 0.1).onChange((value: number) => {
+		updateDOFParams({ focus: value });
+	});
+
+	dofFolder.add(dofParams, "aperture", 0, 0.01, 0.0001).onChange((value: number) => {
+		updateDOFParams({ aperture: value });
+	});
+
+	dofFolder.add(dofParams, "maxblur", 0, 0.05, 0.001).onChange((value: number) => {
+		updateDOFParams({ maxblur: value });
+	});
+
+	dofFolder.open();
 
 	return gui;
 };
