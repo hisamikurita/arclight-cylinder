@@ -51,10 +51,16 @@ export const SCENE = {
 
 // Fog
 export const FOG = {
-	COLOR: 0x0a0a0a,
+	COLOR: 0x000000,
 	NEAR: 3.5,
 	FAR: 9.0,
 } as const;
+
+// Reflection
+export const REFLECTION_PARAMS = {
+	brightness: 0.125,
+	blurRadius: 2.0,
+};
 
 // Camera
 export const CAMERA = {

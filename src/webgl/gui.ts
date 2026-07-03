@@ -1,8 +1,7 @@
 import GUI from "lil-gui";
 import { scene } from "./core";
 import * as THREE from "three";
-import { FOG, PLANE, SCENE } from "./constants";
-import { DOF_PARAMS, updateDOFParams } from "./dof";
+import { FOG, PLANE, REFLECTION_PARAMS, SCENE } from "./constants";
 import { updateGallerySideColor } from "./Gallery";
 
 export const setupGUI = (): GUI => {
@@ -65,28 +64,18 @@ export const setupGUI = (): GUI => {
 
 	planeFolder.open();
 
-	// DOF folder
-	const dofFolder = gui.addFolder("DOF");
+	// Reflection folder
+	const reflectionFolder = gui.addFolder("Reflection");
 
-	const dofParams = {
-		focus: DOF_PARAMS.focus,
-		aperture: DOF_PARAMS.aperture,
-		maxblur: DOF_PARAMS.maxblur,
-	};
+	reflectionFolder
+		.add(REFLECTION_PARAMS, "brightness", 0, 1, 0.01)
+		.name("Brightness");
 
-	dofFolder.add(dofParams, "focus", 0, 20, 0.1).onChange((value: number) => {
-		updateDOFParams({ focus: value });
-	});
+	reflectionFolder
+		.add(REFLECTION_PARAMS, "blurRadius", 0, 10, 0.1)
+		.name("Blur");
 
-	dofFolder.add(dofParams, "aperture", 0, 0.01, 0.0001).onChange((value: number) => {
-		updateDOFParams({ aperture: value });
-	});
-
-	dofFolder.add(dofParams, "maxblur", 0, 0.05, 0.001).onChange((value: number) => {
-		updateDOFParams({ maxblur: value });
-	});
-
-	dofFolder.open();
+	reflectionFolder.open();
 
 	return gui;
 };

@@ -17,6 +17,7 @@ export const createCoverMaterial = (
 			uParallaxScale: { value: PARALLAX.SCALE },
 			uBorderWidth: { value: PLANE.DEPTH },
 			uBorderColor: { value: new THREE.Color(PLANE.SIDE_COLOR) },
+			uBrightness: { value: 1.0 },
 			...THREE.UniformsLib.fog,
 		},
 		vertexShader,

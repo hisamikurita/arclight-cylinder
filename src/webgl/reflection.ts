@@ -1,11 +1,103 @@
 import * as THREE from "three";
+import { REFLECTION_PARAMS } from "./constants";
 import { camera, renderer, scene } from "./core";
-import { galleryGroup } from "./Gallery";
+import { galleryGroup, galleryPlanes, gallerySideMaterial } from "./Gallery";
 
 // 床面（ミラー）
 let floorMesh: THREE.Mesh;
 const FLOOR_Y = -0.8; // 床のY座標
 const FLOOR_SIZE = 20;
+
+let reflectionRT: THREE.WebGLRenderTarget;
+let blurRTA: THREE.WebGLRenderTarget;
+let blurRTB: THREE.WebGLRenderTarget;
+let blurMaterial: THREE.ShaderMaterial;
+let compositeMaterial: THREE.ShaderMaterial;
+let fullscreenScene: THREE.Scene;
+let fullscreenCamera: THREE.OrthographicCamera;
+let fullscreenMesh: THREE.Mesh;
+
+const fullscreenVertexShader = /* glsl */ `
+varying vec2 vUv;
+void main() {
+	vUv = uv;
+	gl_Position = vec4(position.xy, 0.0, 1.0);
+}
+`;
+
+const blurFragmentShader = /* glsl */ `
+precision highp float;
+uniform sampler2D tDiffuse;
+uniform vec2 uResolution;
+uniform vec2 uDirection;
+uniform float uRadius;
+varying vec2 vUv;
+
+void main() {
+	vec2 texel = (uDirection / uResolution) * uRadius;
+	vec4 c = vec4(0.0);
+	c += texture2D(tDiffuse, vUv - texel * 4.0) * 0.051;
+	c += texture2D(tDiffuse, vUv - texel * 3.0) * 0.0918;
+	c += texture2D(tDiffuse, vUv - texel * 2.0) * 0.12245;
+	c += texture2D(tDiffuse, vUv - texel * 1.0) * 0.1531;
+	c += texture2D(tDiffuse, vUv) * 0.1633;
+	c += texture2D(tDiffuse, vUv + texel * 1.0) * 0.1531;
+	c += texture2D(tDiffuse, vUv + texel * 2.0) * 0.12245;
+	c += texture2D(tDiffuse, vUv + texel * 3.0) * 0.0918;
+	c += texture2D(tDiffuse, vUv + texel * 4.0) * 0.051;
+	gl_FragColor = c;
+}
+`;
+
+const compositeFragmentShader = /* glsl */ `
+precision highp float;
+uniform sampler2D tDiffuse;
+varying vec2 vUv;
+
+void main() {
+	gl_FragColor = texture2D(tDiffuse, vUv);
+}
+`;
+
+const setupPostprocessing = (): void => {
+	const w = window.innerWidth;
+	const h = window.innerHeight;
+
+	reflectionRT = new THREE.WebGLRenderTarget(w, h, {
+		depthBuffer: true,
+	});
+	blurRTA = new THREE.WebGLRenderTarget(w, h, { depthBuffer: false });
+	blurRTB = new THREE.WebGLRenderTarget(w, h, { depthBuffer: false });
+
+	blurMaterial = new THREE.ShaderMaterial({
+		uniforms: {
+			tDiffuse: { value: null },
+			uResolution: { value: new THREE.Vector2(w, h) },
+			uDirection: { value: new THREE.Vector2(1, 0) },
+			uRadius: { value: REFLECTION_PARAMS.blurRadius },
+		},
+		vertexShader: fullscreenVertexShader,
+		fragmentShader: blurFragmentShader,
+		depthTest: false,
+		depthWrite: false,
+	});
+
+	compositeMaterial = new THREE.ShaderMaterial({
+		uniforms: {
+			tDiffuse: { value: null },
+		},
+		vertexShader: fullscreenVertexShader,
+		fragmentShader: compositeFragmentShader,
+		depthTest: false,
+		depthWrite: false,
+		transparent: true,
+	});
+
+	fullscreenScene = new THREE.Scene();
+	fullscreenCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+	fullscreenMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), blurMaterial);
+	fullscreenScene.add(fullscreenMesh);
+};
 
 export const setupReflection = (): void => {
 	// 床面のジオメトリとマテリアル
@@ -20,6 +112,18 @@ export const setupReflection = (): void => {
 	floorMesh.rotation.x = -Math.PI / 2;
 	floorMesh.position.y = FLOOR_Y;
 	scene.add(floorMesh);
+
+	setupPostprocessing();
+};
+
+export const resizeReflection = (): void => {
+	if (!reflectionRT) return;
+	const w = window.innerWidth;
+	const h = window.innerHeight;
+	reflectionRT.setSize(w, h);
+	blurRTA.setSize(w, h);
+	blurRTB.setSize(w, h);
+	blurMaterial.uniforms.uResolution.value.set(w, h);
 };
 
 export const renderWithReflection = (
@@ -28,17 +132,15 @@ export const renderWithReflection = (
 	const gl = renderer.getContext();
 	renderer.autoClear = false;
 
-	// レンダーターゲットを設定
 	const previousRenderTarget = renderer.getRenderTarget();
-	if (renderTarget !== undefined) {
-		renderer.setRenderTarget(renderTarget);
-	}
+	const finalTarget = renderTarget !== undefined ? renderTarget : null;
 
 	const originalY = galleryGroup.position.y;
 	const originalScaleY = galleryGroup.scale.y;
 	const originalBackground = scene.background;
 
-	// === 1. 床面をステンシルバッファに描画 ===
+	// === 1. 最終ターゲットをクリアし、床でステンシルを立てる ===
+	renderer.setRenderTarget(finalTarget);
 	if (originalBackground instanceof THREE.Color) {
 		renderer.setClearColor(originalBackground);
 	}
@@ -53,24 +155,68 @@ export const renderWithReflection = (
 	galleryGroup.visible = false;
 	renderer.render(scene, camera);
 
-	// === 2. 反射をステンシル領域内に描画 ===
+	// === 2. 反射シーンをオフスクリーンにレンダリング（明度を落とす）===
 	gl.colorMask(true, true, true, true);
 	gl.depthMask(true);
-	gl.stencilFunc(gl.EQUAL, 1, 0xff);
-	gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
+	gl.disable(gl.STENCIL_TEST);
 
 	galleryGroup.position.y = FLOOR_Y * 2 - originalY;
 	galleryGroup.scale.y = -1;
 	floorMesh.visible = false;
 	galleryGroup.visible = true;
 	scene.background = null;
+
+	const originalSideColor = gallerySideMaterial.color.clone();
+	gallerySideMaterial.color.multiplyScalar(REFLECTION_PARAMS.brightness);
+	for (const plane of galleryPlanes) {
+		const materials = plane.material as THREE.Material[];
+		const cover = materials[4] as THREE.ShaderMaterial;
+		cover.uniforms.uBrightness.value = REFLECTION_PARAMS.brightness;
+	}
+
+	renderer.setRenderTarget(reflectionRT);
+	renderer.setClearColor(0x000000, 0);
+	renderer.clear(true, true, false);
 	renderer.render(scene, camera);
 
-	// === 3. ステンシル無効化して通常シーンを描画 ===
+	gallerySideMaterial.color.copy(originalSideColor);
+	for (const plane of galleryPlanes) {
+		const materials = plane.material as THREE.Material[];
+		const cover = materials[4] as THREE.ShaderMaterial;
+		cover.uniforms.uBrightness.value = 1.0;
+	}
+
+	// === 3. ガウシアンブラー（水平 → 垂直）===
+	fullscreenMesh.material = blurMaterial;
+	blurMaterial.uniforms.uRadius.value = REFLECTION_PARAMS.blurRadius;
+
+	blurMaterial.uniforms.tDiffuse.value = reflectionRT.texture;
+	blurMaterial.uniforms.uDirection.value.set(1, 0);
+	renderer.setRenderTarget(blurRTA);
+	renderer.clear(true, false, false);
+	renderer.render(fullscreenScene, fullscreenCamera);
+
+	blurMaterial.uniforms.tDiffuse.value = blurRTA.texture;
+	blurMaterial.uniforms.uDirection.value.set(0, 1);
+	renderer.setRenderTarget(blurRTB);
+	renderer.clear(true, false, false);
+	renderer.render(fullscreenScene, fullscreenCamera);
+
+	// === 4. 最終ターゲットのステンシル領域にブラー結果を合成 ===
+	renderer.setRenderTarget(finalTarget);
+	gl.enable(gl.STENCIL_TEST);
+	gl.stencilFunc(gl.EQUAL, 1, 0xff);
+	gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
+
+	fullscreenMesh.material = compositeMaterial;
+	compositeMaterial.uniforms.tDiffuse.value = blurRTB.texture;
+	renderer.render(fullscreenScene, fullscreenCamera);
+
+	// === 5. ステンシル無効化して通常シーンを描画 ===
 	gl.disable(gl.STENCIL_TEST);
 	galleryGroup.position.y = originalY;
 	galleryGroup.scale.y = originalScaleY;
-	floorMesh.visible = true;
+	floorMesh.visible = false;
 	renderer.clearDepth();
 	renderer.render(scene, camera);
 
@@ -78,7 +224,6 @@ export const renderWithReflection = (
 	scene.background = originalBackground;
 	renderer.autoClear = true;
 
-	// レンダーターゲットを復元
 	if (renderTarget !== undefined) {
 		renderer.setRenderTarget(previousRenderTarget);
 	}

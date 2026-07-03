@@ -5,6 +5,7 @@ uniform float uParallaxOffset; // -1.0 ~ 1.0
 uniform float uParallaxScale; // 1.0 ~ 1.25+
 uniform float uBorderWidth;
 uniform vec3 uBorderColor;
+uniform float uBrightness;
 
 // Fog uniforms
 uniform vec3 fogColor;
@@ -58,5 +59,6 @@ void main() {
 
 	// Apply fog
 	float fogFactor = smoothstep(fogNear, fogFar, vFogDepth);
-	gl_FragColor = vec4(mix(color.rgb, fogColor, fogFactor), color.a);
+	vec3 rgb = mix(color.rgb, fogColor, fogFactor) * uBrightness;
+	gl_FragColor = vec4(rgb, color.a);
 }
