@@ -3,10 +3,13 @@ import {
 	createGallery,
 	handleResize,
 	initRenderer,
+	renderWithReflection,
 	setupGalleryRotation,
+	setupGUI,
 	setupHelpers,
 	setupInteractions,
 	setupLights,
+	setupReflection,
 	startAnimationLoop,
 	updateGalleryRotation,
 	updateParallax,
@@ -32,11 +35,20 @@ setupInteractions(planes);
 // ギャラリー回転をセットアップ
 setupGalleryRotation();
 
+// 鏡面反射をセットアップ
+setupReflection();
+
+// GUIをセットアップ
+setupGUI();
+
 // リサイズ対応
 handleResize();
 
 // アニメーション開始
-startAnimationLoop(() => {
-	updateGalleryRotation();
-	updateParallax(planes);
-});
+startAnimationLoop(
+	() => {
+		updateGalleryRotation();
+		updateParallax(planes);
+	},
+	renderWithReflection,
+);

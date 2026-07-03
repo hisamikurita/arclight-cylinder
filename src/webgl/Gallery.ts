@@ -26,6 +26,8 @@ const defaultOptions: GalleryOptions = {
 };
 
 export let galleryGroup: THREE.Group;
+export let gallerySideMaterial: THREE.MeshBasicMaterial;
+export let galleryPlanes: THREE.Mesh[] = [];
 
 export const createGallery = (
 	imagePaths: string[],
@@ -38,7 +40,8 @@ export const createGallery = (
 	galleryGroup = new THREE.Group();
 	galleryGroup.position.y = GALLERY.OFFSET_Y;
 
-	const sideMaterial = new THREE.MeshBasicMaterial({ color: PLANE.SIDE_COLOR });
+	gallerySideMaterial = new THREE.MeshBasicMaterial({ color: PLANE.SIDE_COLOR });
+	const sideMaterial = gallerySideMaterial;
 
 	for (let i = 0; i < opts.imageCount; i++) {
 		const geometry = createCurvedPlaneGeometry(
@@ -90,7 +93,21 @@ export const createGallery = (
 
 	scene.add(galleryGroup);
 
+	galleryPlanes = planes;
 	return planes;
+};
+
+export const updateGallerySideColor = (color: number): void => {
+	if (gallerySideMaterial) {
+		gallerySideMaterial.color.setHex(color);
+	}
+	for (const plane of galleryPlanes) {
+		const materials = plane.material as THREE.Material[];
+		const coverMaterial = materials[4] as THREE.ShaderMaterial;
+		if (coverMaterial.uniforms.uBorderColor) {
+			coverMaterial.uniforms.uBorderColor.value.setHex(color);
+		}
+	}
 };
 
 const worldPosition = new THREE.Vector3();

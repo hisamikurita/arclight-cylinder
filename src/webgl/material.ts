@@ -17,10 +17,12 @@ export const createCoverMaterial = (
 			uParallaxScale: { value: PARALLAX.SCALE },
 			uBorderWidth: { value: PLANE.DEPTH },
 			uBorderColor: { value: new THREE.Color(PLANE.SIDE_COLOR) },
+			...THREE.UniformsLib.fog,
 		},
 		vertexShader,
 		fragmentShader,
 		side: THREE.DoubleSide,
+		fog: true,
 	});
 
 	texture.colorSpace = THREE.SRGBColorSpace;

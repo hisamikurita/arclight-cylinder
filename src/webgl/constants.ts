@@ -30,10 +30,10 @@ export const ROTATION = {
 export const GALLERY = {
 	RADIUS: 4,
 	IMAGE_COUNT: 6,
-	TILT_MIN: 0.1,
+	TILT_MIN: 0,
 	TILT_MAX: 0.2,
 	SWAY_X: 0.3, // 左右の揺れ幅
-	OFFSET_Y: 0.3, // 上方向のオフセット
+	OFFSET_Y: 0.4, // 上方向のオフセット
 } as const;
 
 export const PLANE = {
@@ -42,6 +42,18 @@ export const PLANE = {
 	DEPTH: 0.035,
 	SEGMENTS: 32,
 	SIDE_COLOR: 0x333333,
+} as const;
+
+// Scene
+export const SCENE = {
+	BACKGROUND_COLOR: 0x000000,
+} as const;
+
+// Fog
+export const FOG = {
+	COLOR: 0x0a0a0a,
+	NEAR: 3.5,
+	FAR: 9.0,
 } as const;
 
 // Camera

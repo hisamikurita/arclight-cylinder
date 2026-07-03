@@ -1,8 +1,10 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { CAMERA } from "./constants";
+import { CAMERA, FOG, SCENE } from "./constants";
 
 export const scene = new THREE.Scene();
+scene.background = new THREE.Color(SCENE.BACKGROUND_COLOR);
+scene.fog = new THREE.Fog(FOG.COLOR, FOG.NEAR, FOG.FAR);
 
 export const camera = new THREE.PerspectiveCamera(
 	CAMERA.FOV,
@@ -14,7 +16,10 @@ export const camera = new THREE.PerspectiveCamera(
 camera.position.y = CAMERA.INITIAL_Y;
 camera.position.z = CAMERA.INITIAL_Z;
 
-export const renderer = new THREE.WebGLRenderer({ antialias: true });
+export const renderer = new THREE.WebGLRenderer({
+	antialias: true,
+	stencil: true,
+});
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 
@@ -33,10 +38,17 @@ export const handleResize = (): void => {
 	});
 };
 
-export const startAnimationLoop = (callback?: () => void): void => {
+export const startAnimationLoop = (
+	callback?: () => void,
+	customRender?: () => void,
+): void => {
 	renderer.setAnimationLoop(() => {
 		callback?.();
 		orbitControls.update();
-		renderer.render(scene, camera);
+		if (customRender) {
+			customRender();
+		} else {
+			renderer.render(scene, camera);
+		}
 	});
 };
