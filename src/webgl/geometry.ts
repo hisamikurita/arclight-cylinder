@@ -12,7 +12,16 @@ export const createCurvedPlaneGeometry = (
 	radius: number,
 	segments: number,
 ): THREE.BoxGeometry => {
-	const geometry = new THREE.BoxGeometry(width, height, depth, segments, 1, 1);
+	// X方向の変位ノイズを可視化するには Y 方向にも十分な頂点数が必要
+	const heightSegments = Math.max(1, Math.floor((segments * height) / width));
+	const geometry = new THREE.BoxGeometry(
+		width,
+		height,
+		depth,
+		segments,
+		heightSegments,
+		1,
+	);
 	const position = geometry.attributes.position;
 
 	// 平面の頂点位置を保存

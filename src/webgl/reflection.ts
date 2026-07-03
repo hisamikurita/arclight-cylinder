@@ -127,10 +127,15 @@ export const renderWithReflection = (
 
 	const originalSideColor = gallerySideMaterial.color.clone();
 	gallerySideMaterial.color.multiplyScalar(REFLECTION_PARAMS.brightness);
+	const t = performance.now() / 1000;
 	for (const plane of galleryPlanes) {
 		const materials = plane.material as THREE.Material[];
 		const cover = materials[4] as THREE.ShaderMaterial;
 		cover.uniforms.uBrightness.value = REFLECTION_PARAMS.brightness;
+		cover.uniforms.uTime.value = t;
+		cover.uniforms.uWaveStrength.value = REFLECTION_PARAMS.waveStrength;
+		cover.uniforms.uWaveFrequency.value = REFLECTION_PARAMS.waveFrequency;
+		cover.uniforms.uWaveSpeed.value = REFLECTION_PARAMS.waveSpeed;
 	}
 
 	renderer.setRenderTarget(reflectionRT);
@@ -143,6 +148,7 @@ export const renderWithReflection = (
 		const materials = plane.material as THREE.Material[];
 		const cover = materials[4] as THREE.ShaderMaterial;
 		cover.uniforms.uBrightness.value = 1.0;
+		cover.uniforms.uWaveStrength.value = 0;
 	}
 
 	// === 3. ガウシアンブラー（水平 → 垂直）===

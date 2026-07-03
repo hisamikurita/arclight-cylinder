@@ -75,6 +75,18 @@ export const setupGUI = (): GUI => {
 		.add(REFLECTION_PARAMS, "blurRadius", 0, 10, 0.1)
 		.name("Blur");
 
+	reflectionFolder
+		.add(REFLECTION_PARAMS, "waveStrength", 0, 0.3, 0.005)
+		.name("Wave Strength");
+
+	reflectionFolder
+		.add(REFLECTION_PARAMS, "waveFrequency", 0, 20, 0.1)
+		.name("Wave Frequency");
+
+	reflectionFolder
+		.add(REFLECTION_PARAMS, "waveSpeed", 0, 2, 0.02)
+		.name("Wave Speed");
+
 	reflectionFolder.open();
 
 	return gui;

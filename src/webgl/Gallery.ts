@@ -65,6 +65,8 @@ export const createGallery = (
 			opts.planeWidth,
 			opts.planeHeight,
 		);
+		// プレーンごとに固有の seed を割り当てて波の位相をずらす
+		coverMaterial.uniforms.uWaveSeed.value = i * 0.3731 + Math.random() * 0.1;
 
 		// BoxGeometry face order: +x, -x, +y, -y, +z (front), -z (back)
 		const materials = [

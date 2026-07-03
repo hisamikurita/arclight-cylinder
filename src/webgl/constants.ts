@@ -58,8 +58,11 @@ export const FOG = {
 
 // Reflection
 export const REFLECTION_PARAMS = {
-	brightness: 0.125,
+	brightness: 0.50,
 	blurRadius: 2.0,
+	waveStrength: 0.070,
+	waveFrequency: 4.0,
+	waveSpeed: 0.6,
 };
 
 // Camera
