@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { PARALLAX, PLANE } from "./constants";
-import fragmentShader from "./shaders/cover.frag?raw";
-import vertexShader from "./shaders/cover.vert?raw";
+import fragmentShader from "./shaders/plane.frag?raw";
+import vertexShader from "./shaders/plane.vert?raw";
 
 export const createCoverMaterial = (
 	texture: THREE.Texture,

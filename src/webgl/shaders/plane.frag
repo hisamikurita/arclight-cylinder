@@ -57,8 +57,8 @@ void main() {
 		}
 	}
 
-	// Apply fog
+	// Apply fog (brightnessはフォグミックス前に掛ける：フォグに沈んだ部分は背景色と一致させる)
 	float fogFactor = smoothstep(fogNear, fogFar, vFogDepth);
-	vec3 rgb = mix(color.rgb, fogColor, fogFactor) * uBrightness;
+	vec3 rgb = mix(color.rgb * uBrightness, fogColor, fogFactor);
 	gl_FragColor = vec4(rgb, color.a);
 }

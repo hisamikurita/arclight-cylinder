@@ -1,7 +1,10 @@
 import * as THREE from "three";
-import { REFLECTION_PARAMS } from "./constants";
+import { REFLECTION_PARAMS, SCENE } from "./constants";
 import { camera, renderer, scene } from "./core";
 import { galleryGroup, galleryPlanes, gallerySideMaterial } from "./Gallery";
+import blurFragmentShader from "./shaders/blur.frag?raw";
+import compositeFragmentShader from "./shaders/composite.frag?raw";
+import fullscreenVertexShader from "./shaders/fullscreen.vert?raw";
 
 // 床面（ミラー）
 let floorMesh: THREE.Mesh;
@@ -16,48 +19,6 @@ let compositeMaterial: THREE.ShaderMaterial;
 let fullscreenScene: THREE.Scene;
 let fullscreenCamera: THREE.OrthographicCamera;
 let fullscreenMesh: THREE.Mesh;
-
-const fullscreenVertexShader = /* glsl */ `
-varying vec2 vUv;
-void main() {
-	vUv = uv;
-	gl_Position = vec4(position.xy, 0.0, 1.0);
-}
-`;
-
-const blurFragmentShader = /* glsl */ `
-precision highp float;
-uniform sampler2D tDiffuse;
-uniform vec2 uResolution;
-uniform vec2 uDirection;
-uniform float uRadius;
-varying vec2 vUv;
-
-void main() {
-	vec2 texel = (uDirection / uResolution) * uRadius;
-	vec4 c = vec4(0.0);
-	c += texture2D(tDiffuse, vUv - texel * 4.0) * 0.051;
-	c += texture2D(tDiffuse, vUv - texel * 3.0) * 0.0918;
-	c += texture2D(tDiffuse, vUv - texel * 2.0) * 0.12245;
-	c += texture2D(tDiffuse, vUv - texel * 1.0) * 0.1531;
-	c += texture2D(tDiffuse, vUv) * 0.1633;
-	c += texture2D(tDiffuse, vUv + texel * 1.0) * 0.1531;
-	c += texture2D(tDiffuse, vUv + texel * 2.0) * 0.12245;
-	c += texture2D(tDiffuse, vUv + texel * 3.0) * 0.0918;
-	c += texture2D(tDiffuse, vUv + texel * 4.0) * 0.051;
-	gl_FragColor = c;
-}
-`;
-
-const compositeFragmentShader = /* glsl */ `
-precision highp float;
-uniform sampler2D tDiffuse;
-varying vec2 vUv;
-
-void main() {
-	gl_FragColor = texture2D(tDiffuse, vUv);
-}
-`;
 
 const setupPostprocessing = (): void => {
 	const w = window.innerWidth;
@@ -103,9 +64,7 @@ export const setupReflection = (): void => {
 	// 床面のジオメトリとマテリアル
 	const floorGeometry = new THREE.PlaneGeometry(FLOOR_SIZE, FLOOR_SIZE);
 	const floorMaterial = new THREE.MeshBasicMaterial({
-		color: 0x000000,
-		transparent: true,
-		opacity: 0.55,
+		color: SCENE.BACKGROUND_COLOR,
 	});
 
 	floorMesh = new THREE.Mesh(floorGeometry, floorMaterial);
