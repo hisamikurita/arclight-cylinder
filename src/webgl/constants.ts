@@ -53,7 +53,7 @@ export const SCENE = {
 export const FOG = {
 	COLOR: 0x000000,
 	NEAR: 3.5,
-	FAR: 9.0,
+	FAR: 11.5,
 } as const;
 
 // Reflection
