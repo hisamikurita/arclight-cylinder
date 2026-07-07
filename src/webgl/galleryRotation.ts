@@ -2,6 +2,7 @@ import gsap from "gsap";
 import { DURATION, EASING, GALLERY, ROTATION } from "./constants";
 import { renderer } from "./core";
 import { galleryGroup } from "./Gallery";
+import { resetFloorTilt, tiltFloor } from "./reflection";
 
 let isDragging = false;
 let wasDragged = false; // ドラッグ操作が行われたかどうか
@@ -61,6 +62,9 @@ const onMouseMoveTilt = (event: MouseEvent): void => {
 		ease: "power1.out",
 		overwrite: true,
 	});
+
+	// 円筒と一緒に床も傾ける (床は初期 rotation.x = -PI/2)
+	tiltFloor(targetTiltX);
 };
 
 const onMouseDown = (event: MouseEvent): void => {
@@ -184,6 +188,9 @@ export const resetTiltAndSway = (): void => {
 		ease: EASING.TRANSFORM,
 		overwrite: true,
 	});
+
+	// 床の tilt も一緒に初期状態に戻す
+	resetFloorTilt();
 };
 
 export const restoreTiltAndSway = (): void => {

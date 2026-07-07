@@ -4,14 +4,14 @@ import {
 	handleResize,
 	initRenderer,
 	renderWithReflection,
-	resizeAtmosphere,
 	resizeReflection,
-	setupAtmosphere,
+	setupBackgroundLightHelpers,
 	setupGalleryRotation,
 	setupGUI,
 	setupInteractions,
 	setupReflection,
 	startAnimationLoop,
+	updateBackgroundLightHelpers,
 	updateFloorLightUniforms,
 	updateGalleryLightUniforms,
 	updateGalleryRotation,
@@ -41,11 +41,8 @@ setupGalleryRotation();
 // 鏡面反射をセットアップ
 setupReflection();
 
-// 背景の色付きライトをセットアップ
-setupAtmosphere();
-
-// intensity を 0.2〜0.55 でループアニメーション（各サイクル 1.5〜3.8 秒のランダム）
-// startAtmosphereIntensityAnimation(0.2, 0.55, 1.5, 3.8);
+// 背景ライトの方向を可視化するヘルパー
+setupBackgroundLightHelpers();
 
 // GUIをセットアップ
 setupGUI();
@@ -53,7 +50,6 @@ setupGUI();
 // リサイズ対応
 handleResize(() => {
 	resizeReflection();
-	resizeAtmosphere();
 });
 
 // アニメーション開始
@@ -63,6 +59,7 @@ startAnimationLoop(
 		updateParallax(planes);
 		updateGalleryLightUniforms();
 		updateFloorLightUniforms();
+		updateBackgroundLightHelpers();
 	},
 	() => renderWithReflection(),
 );

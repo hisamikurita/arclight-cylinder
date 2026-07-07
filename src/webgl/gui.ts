@@ -2,13 +2,14 @@ import GUI from "lil-gui";
 import { scene } from "./core";
 import * as THREE from "three";
 import {
-	BACKGROUND_LIGHT_PARAMS,
 	BACKGROUND_LIGHTS,
 	EMISSIVE_PARAMS,
+	FLOOR_PARAMS,
 	FOG,
 	PLANE,
 	REFLECTION_PARAMS,
 	SCENE,
+	VOLUME_LIGHT_PARAMS,
 } from "./constants";
 import { updateGalleryEmissive, updateGallerySideColor } from "./Gallery";
 
@@ -19,6 +20,7 @@ const COLOR_KEYS = new Set([
 	"colorR",
 	"backgroundColor",
 	"frameColor",
+	"noiseColor",
 	"BACKGROUND_COLOR",
 	"SIDE_COLOR",
 	"COLOR",
@@ -66,7 +68,8 @@ const dumpParams = (): string => {
 	const blocks = [
 		`export const EMISSIVE_PARAMS = ${formatObject(EMISSIVE_PARAMS, 1)};`,
 		`export const REFLECTION_PARAMS = ${formatObject(REFLECTION_PARAMS, 1)};`,
-		`export const BACKGROUND_LIGHT_PARAMS = ${formatObject(BACKGROUND_LIGHT_PARAMS, 1)};`,
+		`export const FLOOR_PARAMS = ${formatObject(FLOOR_PARAMS, 1)};`,
+		`export const VOLUME_LIGHT_PARAMS = ${formatObject(VOLUME_LIGHT_PARAMS, 1)};`,
 		`export const BACKGROUND_LIGHTS = ${formatArray(BACKGROUND_LIGHTS, 1)};`,
 	];
 	return blocks.join("\n\n");
@@ -177,38 +180,30 @@ export const setupGUI = (): GUI => {
 
 	reflectionFolder.open();
 
-	// Background Light Common Settings
-	const bgCommonFolder = gui.addFolder("BG Light Common");
+	// Floor Surface folder (curve deformation + noise + fog)
+	const floorFolder = gui.addFolder("Floor Surface");
+	floorFolder.add(FLOOR_PARAMS, "curvePower", 1, 12, 0.1).name("Curve Power");
+	floorFolder.add(FLOOR_PARAMS, "curveHeight", 0, 10, 0.1).name("Curve Height");
+	floorFolder.add(FLOOR_PARAMS, "noiseScale", 0, 10, 0.1).name("Noise Scale");
+	floorFolder.add(FLOOR_PARAMS, "noiseSpeed", 0, 2, 0.01).name("Noise Speed");
+	floorFolder.add(FLOOR_PARAMS, "noiseStrength", 0, 0.5, 0.005).name("Noise Strength");
+	floorFolder.addColor(FLOOR_PARAMS, "noiseColor").name("Noise Color");
+	floorFolder.add(FLOOR_PARAMS, "fogNear", 0, 30, 0.1).name("Fog Near");
+	floorFolder.add(FLOOR_PARAMS, "fogFar", 0, 60, 0.1).name("Fog Far");
+	floorFolder.add(FLOOR_PARAMS, "fogStrength", 0, 1, 0.01).name("Fog Strength");
+	floorFolder.close();
 
-	bgCommonFolder
-		.add(BACKGROUND_LIGHT_PARAMS, "blurRadius", 0, 30, 0.1)
-		.name("Blur");
-
-	bgCommonFolder
-		.add(BACKGROUND_LIGHT_PARAMS, "use3D")
-		.name("Use 3D Mode");
-
-	bgCommonFolder
-		.add(BACKGROUND_LIGHT_PARAMS, "clampToViewport")
-		.name("Clamp to Viewport");
-
-	bgCommonFolder
-		.add(BACKGROUND_LIGHT_PARAMS, "viewportPadding", 0, 0.5, 0.01)
-		.name("Viewport Padding");
-
-	bgCommonFolder
-		.add(BACKGROUND_LIGHT_PARAMS, "scaleByX")
-		.name("Scale by X");
-
-	bgCommonFolder
-		.add(BACKGROUND_LIGHT_PARAMS, "scaleMin", 0, 1, 0.01)
-		.name("Scale Min (左端)");
-
-	bgCommonFolder
-		.add(BACKGROUND_LIGHT_PARAMS, "scaleMax", 1, 5, 0.1)
-		.name("Scale Max (右端)");
-
-	bgCommonFolder.open();
+	// Volume Light (円錐メッシュで光柱を可視化)
+	const volumeFolder = gui.addFolder("Volume Light");
+	volumeFolder.add(VOLUME_LIGHT_PARAMS, "enabled").name("Enabled");
+	volumeFolder.add(VOLUME_LIGHT_PARAMS, "showHelper").name("Show Debug Helper");
+	volumeFolder.add(VOLUME_LIGHT_PARAMS, "distance", 1, 50, 0.5).name("Distance");
+	volumeFolder.add(VOLUME_LIGHT_PARAMS, "attenuation", 1, 50, 0.5).name("Attenuation");
+	volumeFolder.add(VOLUME_LIGHT_PARAMS, "anglePower", 0.5, 15, 0.1).name("Angle Power");
+	volumeFolder.add(VOLUME_LIGHT_PARAMS, "alpha", 0, 2, 0.01).name("Alpha");
+	volumeFolder.add(VOLUME_LIGHT_PARAMS, "wave", 0, 10, 0.1).name("Wave");
+	volumeFolder.add(VOLUME_LIGHT_PARAMS, "speed", 0, 1, 0.01).name("Speed");
+	volumeFolder.close();
 
 	// 各ライトのフォルダを作成
 	const createLightFolder = (index: number, name: string) => {
@@ -218,13 +213,6 @@ export const setupGUI = (): GUI => {
 		folder.add(light, "enabled").name("Enabled");
 		folder.addColor(light, "colorL").name("Color");
 		folder.add(light, "intensity", 0, 3, 0.05).name("Intensity");
-		folder.add(light, "radiusX", 0, 2, 0.01).name("Radius X");
-		folder.add(light, "radiusY", 0, 2, 0.01).name("Radius Y");
-		folder.add(light, "angleL", -180, 180, 1).name("Angle");
-		folder.add(light, "biasL", -1, 1, 0.01).name("Bias");
-		folder.add(light, "biasRangeL", 0.1, 1, 0.01).name("Bias Range");
-		folder.add(light, "spreadL", -1, 1, 0.01).name("Spread");
-		folder.add(light, "falloff", 0.5, 6, 0.1).name("Falloff");
 
 		// 3D Position
 		const posFolder = folder.addFolder("Position 3D");
@@ -240,23 +228,14 @@ export const setupGUI = (): GUI => {
 		spotFolder.add(light, "spotConeAngle", 10, 120, 1).name("Cone Angle");
 		spotFolder.open();
 
-		// 2D Position
-		const pos2DFolder = folder.addFolder("Position 2D");
-		pos2DFolder.add(light.posL, "x", 0, 1, 0.01).name("X");
-		pos2DFolder.add(light.posL, "y", 0, 1, 0.01).name("Y");
-		pos2DFolder.close();
-
 		return folder;
 	};
 
-	const light1Folder = createLightFolder(0, "Light 1 (Main)");
+	const light1Folder = createLightFolder(0, "Light 1 (Left → Right)");
 	light1Folder.open();
 
-	const light2Folder = createLightFolder(1, "Light 2");
+	const light2Folder = createLightFolder(1, "Light 2 (Right → Left)");
 	light2Folder.close();
-
-	const light3Folder = createLightFolder(2, "Light 3");
-	light3Folder.close();
 
 	return gui;
 };

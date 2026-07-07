@@ -1,26 +1,15 @@
 precision highp float;
 
-uniform vec3 uBaseColor;
-uniform vec3 uLightPos;
-uniform vec3 uLightDir;
-uniform float uLightConeAngle;
+varying vec3 vNormal;
+varying vec3 vWorldPosition;
+
 uniform vec3 uLightColor;
-uniform float uLightIntensity;
-uniform vec3 uCameraPos;
-
-uniform vec3 uFogColor;
-uniform float uFogNear;
-uniform float uFogFar;
-uniform float uFogStrength;
-
+uniform vec3 uSpotPosition;
+uniform float uAttenuation;
+uniform float uAnglePower;
+uniform float uAlpha;
+uniform float uWave;
 uniform float uTime;
-uniform float uNoiseScale;
-uniform float uNoiseStrength;
-uniform vec3 uNoiseColor;
-
-varying vec2 vUv;
-varying vec3 vWorldPos;
-varying vec3 vWorldNormal;
 
 // Classic Perlin 3D Noise by Stefan Gustavson (MIT)
 vec4 permute(vec4 x) { return mod(((x * 34.0) + 1.0) * x, 289.0); }
@@ -83,47 +72,22 @@ float cnoise(vec3 P) {
 }
 
 void main() {
-	vec3 N = normalize(vWorldNormal);
-	vec3 toSurface = vWorldPos - uLightPos;
-	vec3 L = normalize(-toSurface);
-	vec3 V = normalize(uCameraPos - vWorldPos);
-	vec3 H = normalize(L + V);
+	// 距離減衰: 光源からの距離を attenuation で正規化
+	float spot = distance(vWorldPosition, uSpotPosition) / uAttenuation;
+	float intensity = 1.0 - clamp(spot, 0.0, 1.0);
 
-	// Spotlight cone falloff
-	float cosAngle = dot(normalize(toSurface), normalize(uLightDir));
-	float cosCone = cos(radians(uLightConeAngle));
-	float cosOuter = cos(radians(uLightConeAngle * 1.3));
-	float spotFactor = smoothstep(cosOuter, cosCone, cosAngle);
+	// 角度減衰: 円錐側面ほど強く、中央（見通し方向）ほど弱い
+	// backface に対応するため abs をとる
+	vec3 normal = vec3(vNormal.x, vNormal.y, abs(vNormal.z));
+	float angleIntensity = pow(max(dot(normal, vec3(0.0, 0.0, 1.0)), 0.0), uAnglePower);
+	intensity *= angleIntensity;
 
-	// Diffuse
-	float NdotL = max(dot(N, L), 0.0);
-	vec3 diffuse = uLightColor * NdotL;
+	// 光源から遠い部分をふわっと出す
+	float spotAlphaStart = clamp(spot * 3.0 - 0.5, 0.0, 1.0);
 
-	// Specular (Blinn-Phong) - 床面は控えめに
-	float NdotH = max(dot(N, H), 0.0);
-	float spec = pow(NdotH, 16.0);
-	vec3 specular = uLightColor * spec * 0.2;
+	// 揺らぎ: Perlin ノイズで時間変化
+	float c = cnoise(vec3(normal.x * uWave * 0.5, normal.y * uWave, uTime)) + 1.0;
 
-	// Distance attenuation
-	float dist = length(toSurface);
-	float attenuation = 1.0 / (1.0 + 0.02 * dist * dist);
-
-	vec3 lighting = (diffuse + specular) * uLightIntensity * attenuation * spotFactor;
-
-	// Perlin ノイズによる表面のムラ（ワールド座標＋時間で緩やかにドリフト）
-	float n = cnoise(vec3(vWorldPos.xz * uNoiseScale * 0.1, uTime));
-	float noiseTerm = n * uNoiseStrength;
-
-	vec3 color = uBaseColor + lighting + uNoiseColor * noiseTerm;
-
-	// 距離減衰の Fog（カメラからの距離）
-	float camDist = length(uCameraPos - vWorldPos);
-	float fogFactor = smoothstep(uFogNear, uFogFar, camDist) * uFogStrength;
-	color = mix(color, uFogColor, fogFactor);
-
-	// alpha は fog だけで駆動 (奥ほど不透明) 。
-	// ノイズを alpha に効かせるとピクセル単位のちらつき (エイリアス) が出るので RGB 側だけに載せる。
-	float alpha = clamp(fogFactor, 0.0, 1.0);
-
-	gl_FragColor = vec4(color, alpha);
+	intensity = c * intensity * uAlpha * spotAlphaStart;
+	gl_FragColor = vec4(uLightColor, clamp(intensity, 0.0, 1.0));
 }

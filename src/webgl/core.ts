@@ -24,7 +24,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 
 export const orbitControls = new OrbitControls(camera, renderer.domElement);
-orbitControls.enabled = true;
+orbitControls.enabled = false;
 
 export const initRenderer = (container: HTMLElement = document.body): void => {
 	container.appendChild(renderer.domElement);

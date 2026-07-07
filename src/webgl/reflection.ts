@@ -1,6 +1,13 @@
+import gsap from "gsap";
 import * as THREE from "three";
-import { renderAtmosphere } from "./atmosphere";
-import { BACKGROUND_LIGHTS, REFLECTION_PARAMS, SCENE } from "./constants";
+import {
+	BACKGROUND_LIGHTS,
+	DURATION,
+	FLOOR_PARAMS,
+	FOG,
+	REFLECTION_PARAMS,
+	SCENE,
+} from "./constants";
 import { camera, renderer, scene } from "./core";
 import { galleryGroup, galleryPlanes, gallerySideMaterial } from "./Gallery";
 import blurFragmentShader from "./shaders/blur.frag?raw";
@@ -13,7 +20,8 @@ import fullscreenVertexShader from "./shaders/fullscreen.vert?raw";
 let floorMesh: THREE.Mesh;
 let floorMaterial: THREE.ShaderMaterial;
 const FLOOR_Y = -0.7; // 床のY座標
-const FLOOR_SIZE = 20;
+const FLOOR_WIDTH = 40; // 左右方向 (world X)
+const FLOOR_DEPTH = 20; // 前後方向 (world Z)
 
 let reflectionRT: THREE.WebGLRenderTarget;
 let blurRTA: THREE.WebGLRenderTarget;
@@ -76,7 +84,8 @@ const setupPostprocessing = (): void => {
 
 export const setupReflection = (): void => {
 	// 床面のジオメトリとマテリアル（ライティング対応）
-	const floorGeometry = new THREE.PlaneGeometry(FLOOR_SIZE, FLOOR_SIZE);
+	// segments を細かくすることで頂点シェーダの curve deformation が滑らかに効く
+	const floorGeometry = new THREE.PlaneGeometry(FLOOR_WIDTH, FLOOR_DEPTH, 96, 64);
 	const light = BACKGROUND_LIGHTS[0];
 
 	floorMaterial = new THREE.ShaderMaterial({
@@ -88,9 +97,24 @@ export const setupReflection = (): void => {
 			uLightColor: { value: new THREE.Color(light.colorL) },
 			uLightIntensity: { value: light.intensity },
 			uCameraPos: { value: new THREE.Vector3() },
+			// curve deformation
+			uCurvePower: { value: FLOOR_PARAMS.curvePower },
+			uCurveHeight: { value: FLOOR_PARAMS.curveHeight },
+			// noise
+			uTime: { value: 0 },
+			uNoiseScale: { value: FLOOR_PARAMS.noiseScale },
+			uNoiseStrength: { value: FLOOR_PARAMS.noiseStrength },
+			uNoiseColor: { value: new THREE.Color(FLOOR_PARAMS.noiseColor) },
+			// fog
+			uFogColor: { value: new THREE.Color(FOG.COLOR) },
+			uFogNear: { value: FLOOR_PARAMS.fogNear },
+			uFogFar: { value: FLOOR_PARAMS.fogFar },
+			uFogStrength: { value: FLOOR_PARAMS.fogStrength },
 		},
 		vertexShader: floorVertexShader,
 		fragmentShader: floorFragmentShader,
+		transparent: true,
+		depthWrite: false,
 	});
 
 	floorMesh = new THREE.Mesh(floorGeometry, floorMaterial);
@@ -123,6 +147,40 @@ export const updateFloorLightUniforms = (): void => {
 	floorMaterial.uniforms.uLightColor.value.copy(lightColor);
 	floorMaterial.uniforms.uLightIntensity.value = light.enabled ? light.intensity : 0;
 	floorMaterial.uniforms.uCameraPos.value.copy(camera.position);
+
+	// 動的パラメータ
+	floorMaterial.uniforms.uTime.value = performance.now() / 1000 * FLOOR_PARAMS.noiseSpeed;
+	floorMaterial.uniforms.uCurvePower.value = FLOOR_PARAMS.curvePower;
+	floorMaterial.uniforms.uCurveHeight.value = FLOOR_PARAMS.curveHeight;
+	floorMaterial.uniforms.uNoiseScale.value = FLOOR_PARAMS.noiseScale;
+	floorMaterial.uniforms.uNoiseStrength.value = FLOOR_PARAMS.noiseStrength;
+	floorMaterial.uniforms.uNoiseColor.value.setHex(FLOOR_PARAMS.noiseColor);
+	floorMaterial.uniforms.uFogColor.value.setHex(FOG.COLOR);
+	floorMaterial.uniforms.uFogNear.value = FLOOR_PARAMS.fogNear;
+	floorMaterial.uniforms.uFogFar.value = FLOOR_PARAMS.fogFar;
+	floorMaterial.uniforms.uFogStrength.value = FLOOR_PARAMS.fogStrength;
+};
+
+// 円筒の tilt に合わせて床も同方向に傾ける。
+// 床は初期 rotation.x = -PI/2 なので、そこに tiltX を足す形。
+export const tiltFloor = (tiltX: number): void => {
+	if (!floorMesh) return;
+	gsap.to(floorMesh.rotation, {
+		x: -Math.PI / 2 + tiltX,
+		duration: DURATION.BASE,
+		ease: "power1.out",
+		overwrite: true,
+	});
+};
+
+export const resetFloorTilt = (): void => {
+	if (!floorMesh) return;
+	gsap.to(floorMesh.rotation, {
+		x: -Math.PI / 2,
+		duration: DURATION.BASE,
+		ease: "power1.out",
+		overwrite: true,
+	});
 };
 
 export const resizeReflection = (): void => {
@@ -150,10 +208,13 @@ export const renderWithReflection = (
 
 	// === 1. 最終ターゲットをクリアし、背景を敷いてから床でステンシルを立てる ===
 	renderer.setRenderTarget(finalTarget);
+	// 背景色を SCENE.BACKGROUND_COLOR で塗りつぶす
+	const prevClear = new THREE.Color();
+	renderer.getClearColor(prevClear);
+	const prevAlpha = renderer.getClearAlpha();
+	renderer.setClearColor(SCENE.BACKGROUND_COLOR, 1);
 	renderer.clear(true, true, true);
-
-	// 背景（両サイドの色付きグロウ）を全画面に描画
-	renderAtmosphere();
+	renderer.setClearColor(prevClear, prevAlpha);
 
 	// 床面はステンシルのみ書き込む（色は描画しない）
 	gl.enable(gl.STENCIL_TEST);
@@ -254,7 +315,8 @@ export const renderWithReflection = (
 	gl.disable(gl.STENCIL_TEST);
 	galleryGroup.position.y = originalY;
 	galleryGroup.scale.y = originalScaleY;
-	floorMesh.visible = false; // 床面はstep1で描画済み
+	// 床を transparent で可視化し、反射の上に noise/fog を乗せる
+	floorMesh.visible = true;
 	renderer.clearDepth();
 	renderer.render(scene, camera);
 

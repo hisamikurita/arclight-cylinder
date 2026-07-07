@@ -47,7 +47,7 @@ export const PLANE = {
 
 // Emissive (画像の発光)
 export const EMISSIVE_PARAMS = {
-	intensity: 0,
+	intensity: -0.25,
 };
 
 // Scene
@@ -57,86 +57,69 @@ export const SCENE = {
 
 // Fog
 export const FOG = {
-	COLOR: 0x000000,
+	COLOR: 0x0000,
 	NEAR: 3.5,
 	FAR: 11.5,
 } as const;
 
 // Reflection
 export const REFLECTION_PARAMS = {
-	brightness: 0.22,
+	brightness: 0.9,
 	blurRadius: 2,
 	waveStrength: 0.07,
 	waveFrequency: 4,
 	waveSpeed: 0.6,
 };
 
-// Background side glows
-// radiusX を狭く radiusY を大きくすると縦ストライプ、angle で傾けられる
-export const BACKGROUND_LIGHT_PARAMS = {
-	// 共通設定
-	blurRadius: 8.3,
-	// 3D位置モード共通設定
-	use3D: true,
-	clampToViewport: true,
-	viewportPadding: 0.09,
-	scaleByX: true,
-	scaleMin: 0.1,
-	scaleMax: 2.0,
+// Floor surface (curve deformation + noise + fog)
+export const FLOOR_PARAMS = {
+	// 端の湾曲: uv 中心からの距離を power 乗して height 分下げる
+	curvePower: 12,
+	curveHeight: 8.9,
+	// Perlin ノイズによる表面のムラ
+	noiseScale: 6.3,
+	noiseSpeed: 1.23,
+	noiseStrength: 0.12,
+	noiseColor: 0xffffff,
+	// 距離減衰の霧（背景色に溶ける）
+	fogNear: 18.5,
+	fogFar: 15.7,
+	fogStrength: 0.16,
 };
 
-// 3つのライト設定
+// Volumetric spot light (円錐メッシュで光柱を可視化)
+export const VOLUME_LIGHT_PARAMS = {
+	enabled: true,
+	showHelper: false, // SpotLightHelper (デバッグ用ワイヤーフレーム)
+	distance: 20, // 円錐の長さ
+	attenuation: 15, // 距離減衰の係数（大きいほど遠くまで届く）
+	anglePower: 5, // 円錐側面の強調（大きいほど側面が薄く、中心が濃く）
+	alpha: 0.4,
+	wave: 6.0,
+	speed: 0.4,
+};
+
+// ライト設定 (左と右の 2 灯)
 export const BACKGROUND_LIGHTS = [
 	{
+		// 左から右に向けるメインライト
 		enabled: true,
-		pos3D: { x: -5.4, y: 2.9, z: 7.5 },
-		spotAngleX: -20,
+		pos3D: { x: -7, y: 4, z: 8.1 },
+		spotAngleX: -37,
 		spotAngleY: -90,
 		spotConeAngle: 44,
-		posL: { x: 0.15, y: 0.7 },
-		colorL: 0xfffafa,
-		intensity: 0.85,
-		radiusX: 0.8,
-		radiusY: 0.25,
-		falloff: 3.8,
-		angleL: -50,
-		biasL: 0.34,
-		biasRangeL: 0.5,
-		spreadL: 0.06,
+		colorL: 0xadbae1,
+		intensity: 0.45,
 	},
 	{
+		// 右から左に向けるサブライト
 		enabled: true,
-		pos3D: { x: -7.0, y: 3.5, z: 6.5 },
-		spotAngleX: -25,
-		spotAngleY: -100,
-		spotConeAngle: 40,
-		posL: { x: 0.08, y: 0.75 },
-		colorL: 0xfafaff,
-		intensity: 0.6,
-		radiusX: 0.6,
-		radiusY: 0.2,
-		falloff: 4.0,
-		angleL: -55,
-		biasL: 0.3,
-		biasRangeL: 0.5,
-		spreadL: 0.04,
-	},
-	{
-		enabled: true,
-		pos3D: { x: -8.5, y: 4.0, z: 5.5 },
-		spotAngleX: -30,
-		spotAngleY: -110,
-		spotConeAngle: 35,
-		posL: { x: 0.03, y: 0.8 },
-		colorL: 0xf5f5ff,
-		intensity: 0.4,
-		radiusX: 0.4,
-		radiusY: 0.15,
-		falloff: 4.2,
-		angleL: -60,
-		biasL: 0.25,
-		biasRangeL: 0.5,
-		spreadL: 0.02,
+		pos3D: { x: 9.7, y: 4.2, z: 7.5 },
+		spotAngleX: -27,
+		spotAngleY: 57,
+		spotConeAngle: 41,
+		colorL: 0xadbae1,
+		intensity: 0.45,
 	},
 ];
 
