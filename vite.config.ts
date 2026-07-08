@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
 
-// GitHub Pages 用: サブパス公開 (`/cylinder/`) の場合は VITE_BASE=/cylinder/ を渡す
+// GitHub Pages 用: サブパス公開 (`/arclight-cylinder/`) の場合は VITE_BASE=/arclight-cylinder/ を渡す
 const base = process.env.VITE_BASE ?? "/";
 
 export default defineConfig({

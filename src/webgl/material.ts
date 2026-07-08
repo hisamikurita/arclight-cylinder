@@ -17,6 +17,7 @@ export const createCoverMaterial = (
 	const material = new THREE.ShaderMaterial({
 		uniforms: {
 			uTexture: { value: texture },
+			uTextureLoaded: { value: 0 },
 			uPlaneSize: { value: new THREE.Vector2(planeWidth, planeHeight) },
 			uImageSize: { value: new THREE.Vector2(1, 1) },
 			uParallaxOffset: { value: 0 },
@@ -56,18 +57,29 @@ export const createCoverMaterial = (
 	});
 
 	texture.colorSpace = THREE.SRGBColorSpace;
-	if (texture.image) {
+	// texture.image が既に存在し、寸法が確定している場合のみロード済み扱い。
+	// VideoTexture では texture.image = video 要素で常に truthy だが、
+	// metadata 前は width/height が 0 なのでここでは弾く (=下地 #000 のまま)
+	if (
+		texture.image &&
+		(texture.image as HTMLImageElement).width > 0 &&
+		(texture.image as HTMLImageElement).height > 0
+	) {
 		const img = texture.image as HTMLImageElement;
 		material.uniforms.uImageSize.value.set(img.width, img.height);
+		material.uniforms.uTextureLoaded.value = 1;
 	}
 
 	return material;
 };
 
+// テクスチャの実寸が判明したタイミングで呼ぶ。同時に uTextureLoaded を 1 にして
+// シェーダ側の "未ロード時の下地 #000" 表示を解除する
 export const updateCoverMaterialImageSize = (
 	material: THREE.ShaderMaterial,
 	width: number,
 	height: number,
 ): void => {
 	material.uniforms.uImageSize.value.set(width, height);
+	material.uniforms.uTextureLoaded.value = 1;
 };

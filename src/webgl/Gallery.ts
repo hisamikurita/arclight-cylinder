@@ -39,7 +39,7 @@ export let galleryPlanes: THREE.Mesh[] = [];
 
 const createVideoTexture = (
 	url: string,
-	onMetadata: (width: number, height: number) => void,
+	onReady: (width: number, height: number) => void,
 ): THREE.VideoTexture => {
 	const video = document.createElement("video");
 	video.src = url;
@@ -48,8 +48,11 @@ const createVideoTexture = (
 	video.muted = true;
 	video.playsInline = true;
 	video.autoplay = true;
-	video.addEventListener("loadedmetadata", () => {
-		onMetadata(video.videoWidth, video.videoHeight);
+	// loadedmetadata では寸法は取れるが最初のフレームがまだ無いことがあり、
+	// uTextureLoaded=1 にすると一瞬ゴミフレームが見える。loadeddata (最初の
+	// フレームが利用可能) を待って初めて下地 #000 を解除する
+	video.addEventListener("loadeddata", () => {
+		onReady(video.videoWidth, video.videoHeight);
 	});
 	// ユーザー操作前でも autoplay できるよう明示的に play を呼ぶ (muted なので許可される)
 	void video.play().catch(() => {

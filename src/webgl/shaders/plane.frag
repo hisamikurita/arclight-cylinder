@@ -1,4 +1,5 @@
 uniform sampler2D uTexture;
+uniform float uTextureLoaded; // 0: 未ロード (下地 #000 を表示), 1: ロード完了
 uniform vec2 uPlaneSize;
 uniform vec2 uImageSize;
 uniform float uTargetAspect; // >0: このアスペクトに見せかけて上下クロップ / 0: 実アスペクトそのまま
@@ -153,7 +154,8 @@ void main() {
 				uv += vec2(rx, ry) * uWaveStrength * 0.15;
 			}
 
-			color = texture2D(uTexture, uv);
+			// 未ロード時は下地 #000 を表示する
+			color = mix(vec4(0.0, 0.0, 0.0, 1.0), texture2D(uTexture, uv), uTextureLoaded);
 			isImage = true;
 
 			// Vignette: UV 中心 (0.5, 0.5) からの距離で減衰。

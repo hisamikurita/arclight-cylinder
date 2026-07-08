@@ -81,8 +81,8 @@ export const FOG = {
 // brightnessEdge / brightnessCenter: プレーンの worldX に応じて反射の明度を補間
 // (EMISSIVE_PARAMS と同じ考え方。真ん中で強く、左右端で弱く映る)
 export const REFLECTION_PARAMS = {
-	brightnessEdge: 0.5,
-	brightnessCenter: 2.0,
+	brightnessEdge: 0.8,
+	brightnessCenter: 2.4,
 	blurRadius: 2,
 	waveStrength: 0.07,
 	waveFrequency: 4,

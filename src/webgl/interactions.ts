@@ -34,6 +34,14 @@ export const setupInteractions = (planes: THREE.Mesh[]): void => {
 	window.addEventListener("resize", onResize);
 };
 
+// 円筒の背面側 (カメラから遠いプレーン) はインタラクション対象外にするための判定
+// (背面のプレーンは front 側の隙間から raycaster に拾われることがあるため)
+const hitWorldPos = new THREE.Vector3();
+const isFrontHalfPlane = (plane: THREE.Object3D): boolean => {
+	plane.getWorldPosition(hitWorldPos);
+	return hitWorldPos.z > galleryGroup.position.z;
+};
+
 // プレーン hover 時のカーソル切り替え。ドラッグ中は galleryRotation 側で
 // "grabbing" が設定されているので触らない
 const onHoverMove = (event: MouseEvent): void => {
@@ -44,7 +52,8 @@ const onHoverMove = (event: MouseEvent): void => {
 
 	raycaster.setFromCamera(mouse, camera);
 	const intersects = raycaster.intersectObjects(targetPlanes);
-	renderer.domElement.style.cursor = intersects.length > 0 ? "pointer" : "";
+	const front = intersects.find((i) => isFrontHalfPlane(i.object));
+	renderer.domElement.style.cursor = front ? "pointer" : "";
 };
 
 const onResize = (): void => {
@@ -76,8 +85,10 @@ const onClick = (event: MouseEvent): void => {
 	}
 
 	const intersects = raycaster.intersectObjects(targetPlanes);
-	if (intersects.length > 0) {
-		zoomIn(intersects[0].object as THREE.Mesh);
+	// 背面側のプレーンは無視する
+	const front = intersects.find((i) => isFrontHalfPlane(i.object));
+	if (front) {
+		zoomIn(front.object as THREE.Mesh);
 	}
 };
 
