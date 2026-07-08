@@ -5,6 +5,7 @@ import {
 	DURATION,
 	FLOOR_PARAMS,
 	FOG,
+	GALLERY,
 	REFLECTION_PARAMS,
 	SCENE,
 } from "./constants";
@@ -251,12 +252,26 @@ export const renderWithReflection = (
 	scene.background = null;
 
 	const originalSideColor = gallerySideMaterial.color.clone();
-	gallerySideMaterial.color.multiplyScalar(REFLECTION_PARAMS.brightness);
+	// side material は共有なので、edge の値で一律 darken (subtle効果なのでこれで十分)
+	gallerySideMaterial.color.multiplyScalar(REFLECTION_PARAMS.brightnessEdge);
 	const t = performance.now() / 1000;
+	const reflectionWorldPos = new THREE.Vector3();
 	for (const plane of galleryPlanes) {
 		const materials = plane.material as THREE.Material[];
 		const cover = materials[4] as THREE.ShaderMaterial;
-		cover.uniforms.uBrightness.value = REFLECTION_PARAMS.brightness;
+		// worldX に応じて brightness を center↔edge で補間 (EMISSIVE_PARAMS と同じ思想)
+		plane.getWorldPosition(reflectionWorldPos);
+		const normalizedX = THREE.MathUtils.clamp(
+			Math.abs(reflectionWorldPos.x) / GALLERY.RADIUS,
+			0,
+			1,
+		);
+		const centerness = 1 - normalizedX; // 1 = 中央, 0 = 端
+		const brightness =
+			REFLECTION_PARAMS.brightnessEdge +
+			(REFLECTION_PARAMS.brightnessCenter - REFLECTION_PARAMS.brightnessEdge) *
+				centerness;
+		cover.uniforms.uBrightness.value = brightness;
 		cover.uniforms.uTime.value = t;
 		cover.uniforms.uWaveStrength.value = REFLECTION_PARAMS.waveStrength;
 		cover.uniforms.uWaveFrequency.value = REFLECTION_PARAMS.waveFrequency;

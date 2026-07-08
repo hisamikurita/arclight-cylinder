@@ -174,8 +174,12 @@ export const setupGUI = (): GUI => {
 	const reflectionFolder = gui.addFolder("Reflection");
 
 	reflectionFolder
-		.add(REFLECTION_PARAMS, "brightness", 0, 1, 0.01)
-		.name("Brightness");
+		.add(REFLECTION_PARAMS, "brightnessEdge", 0, 2, 0.01)
+		.name("Brightness Edge");
+
+	reflectionFolder
+		.add(REFLECTION_PARAMS, "brightnessCenter", 0, 2, 0.01)
+		.name("Brightness Center");
 
 	reflectionFolder
 		.add(REFLECTION_PARAMS, "blurRadius", 0, 10, 0.1)

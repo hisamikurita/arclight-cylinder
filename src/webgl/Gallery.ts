@@ -37,10 +37,6 @@ export let galleryGroup: THREE.Group;
 export let gallerySideMaterial: THREE.MeshBasicMaterial;
 export let galleryPlanes: THREE.Mesh[] = [];
 
-// zoomIn/zoomOut でスポットライトの色をフェードするための係数
-// (updateGalleryLightUniforms が毎フレーム上書きするため、掛け合わせる形にする)
-export const galleryLightFade = { value: 1 };
-
 const createVideoTexture = (
 	url: string,
 	onMetadata: (width: number, height: number) => void,
@@ -229,9 +225,7 @@ export const updateGalleryLightUniforms = (): void => {
 			cover.uniforms.uLightConeAngle.value = light.spotConeAngle;
 		}
 		if (cover.uniforms.uLightColor) {
-			cover.uniforms.uLightColor.value
-				.copy(lightColor)
-				.multiplyScalar(galleryLightFade.value);
+			cover.uniforms.uLightColor.value.copy(lightColor);
 		}
 		if (cover.uniforms.uLightIntensity) {
 			cover.uniforms.uLightIntensity.value = light.enabled

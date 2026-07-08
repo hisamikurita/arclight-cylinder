@@ -174,6 +174,13 @@ export const setMouseMoveEnabled = (value: boolean): void => {
 	isMouseMoveEnabled = value;
 };
 
+// zoomOut で "現在の rotation.y をそのまま維持したい" 場面などで、内部の
+// targetRotation を rotation.y と同期させるために使う。同期しないと unpause 後の
+// updateGalleryRotation の内挿が過去の targetRotation に向かって rotation.y を引っ張る
+export const setTargetRotation = (value: number): void => {
+	targetRotation = value;
+};
+
 export const resetTiltAndSway = (): void => {
 	if (!galleryGroup) return;
 

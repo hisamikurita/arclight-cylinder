@@ -24,6 +24,10 @@ type BackgroundLightEntry = {
 
 const backgroundLightEntries: BackgroundLightEntry[] = [];
 
+// zoomIn/zoomOut で光柱 (volume light) の alpha をフェードするための係数。
+// updateBackgroundLightHelpers が毎フレーム uAlpha を上書きするので、掛け合わせる形にする
+export const volumeLightAlphaFade = { value: 1 };
+
 // spotAngleX / spotAngleY (degrees) から進行方向ベクトルを算出
 const computeSpotDirection = (
 	spotAngleX: number,
@@ -183,7 +187,8 @@ export const updateBackgroundLightHelpers = (): void => {
 		volumeMaterial.uniforms.uAttenuation.value =
 			VOLUME_LIGHT_PARAMS.attenuation;
 		volumeMaterial.uniforms.uAnglePower.value = VOLUME_LIGHT_PARAMS.anglePower;
-		volumeMaterial.uniforms.uAlpha.value = VOLUME_LIGHT_PARAMS.alpha;
+		volumeMaterial.uniforms.uAlpha.value =
+			VOLUME_LIGHT_PARAMS.alpha * volumeLightAlphaFade.value;
 		volumeMaterial.uniforms.uWave.value = VOLUME_LIGHT_PARAMS.wave;
 		volumeMaterial.uniforms.uTime.value = now * VOLUME_LIGHT_PARAMS.speed;
 

@@ -5,7 +5,10 @@ gsap.registerPlugin(CustomEase);
 
 // Animation
 export const DURATION = {
+	SHORT: 0.6,
 	BASE: 1.0,
+	LONG: 1.2,
+	EXTRA_LONG: 2.0,
 } as const;
 
 export const EASING = {
@@ -45,7 +48,7 @@ export const PLANE = {
 	HEIGHT: 2.0,
 	DEPTH: 0.038,
 	SEGMENTS: 32,
-	SIDE_COLOR: 0x0d0d0d,
+	SIDE_COLOR: 0x030303,
 } as const;
 
 // Emissive (画像の発光)
@@ -75,8 +78,11 @@ export const FOG = {
 } as const;
 
 // Reflection
+// brightnessEdge / brightnessCenter: プレーンの worldX に応じて反射の明度を補間
+// (EMISSIVE_PARAMS と同じ考え方。真ん中で強く、左右端で弱く映る)
 export const REFLECTION_PARAMS = {
-	brightness: 0.9,
+	brightnessEdge: 0.5,
+	brightnessCenter: 2.0,
 	blurRadius: 2,
 	waveStrength: 0.07,
 	waveFrequency: 4,

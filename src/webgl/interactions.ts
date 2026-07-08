@@ -2,7 +2,7 @@ import gsap from "gsap";
 import * as THREE from "three";
 import { DURATION, EASING, GALLERY, PARALLAX, PLANE } from "./constants";
 import { camera, orbitControls, renderer } from "./core";
-import { galleryGroup, galleryLightFade } from "./Gallery";
+import { galleryGroup } from "./Gallery";
 import {
 	getIsDragging,
 	getWasDragged,
@@ -12,8 +12,10 @@ import {
 	setDragEnabled,
 	setMouseMoveEnabled,
 	setRotationPaused,
+	setTargetRotation,
 } from "./galleryRotation";
 import type { CurvedPlaneData } from "./geometry";
+import { volumeLightAlphaFade } from "./lights";
 
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
@@ -21,8 +23,8 @@ const mouse = new THREE.Vector2();
 let targetPlanes: THREE.Mesh[] = [];
 let isZoomed = false;
 let activePlane: THREE.Mesh | null = null;
-// zoomOut で復元するために保存する galleryGroup の元の姿勢
-let originalGalleryRotationY = 0;
+// zoomOut で position.z を戻すために保存する元の値
+// (rotation.y は zoomOut で戻さず、current の位置を保持する)
 let originalGalleryPositionZ = 0;
 
 export const setupInteractions = (planes: THREE.Mesh[]): void => {
@@ -102,8 +104,7 @@ const calculateCameraDistance = (
 
 const zoomIn = (plane: THREE.Mesh): void => {
 	activePlane = plane;
-	// zoomOut で復元するために保存
-	originalGalleryRotationY = galleryGroup.rotation.y;
+	// zoomOut で復元するために position.z を保存
 	originalGalleryPositionZ = galleryGroup.position.z;
 
 	// 先にtilt/swayをリセット（座標計算前に必要）
@@ -130,38 +131,39 @@ const zoomIn = (plane: THREE.Mesh): void => {
 
 	orbitControls.enabled = false;
 
-	gsap.to(galleryGroup.rotation, {
-		y: targetRotationY,
-		duration: DURATION.BASE,
-		ease: EASING.TRANSFORM,
-	});
-
-	gsap.to(galleryGroup.position, {
-		z: targetPositionZ,
-		duration: DURATION.BASE,
-		ease: EASING.TRANSFORM,
-	});
-
-	morphToFlat(plane);
-
-	// パララックスを止め、ボーダーを消す
 	const materials = plane.material as THREE.Material[];
 	const coverMaterial = materials[4] as THREE.ShaderMaterial;
-	gsap.to(coverMaterial.uniforms.uParallaxIntensity, {
-		value: 0,
-		duration: DURATION.BASE,
-		ease: EASING.TRANSFORM,
-	});
-	gsap.to(coverMaterial.uniforms.uBorderWidth, {
-		value: 0,
-		duration: DURATION.BASE,
-		ease: EASING.TRANSFORM,
-	});
-	gsap.to(galleryLightFade, {
-		value: 0,
-		duration: DURATION.BASE,
-		ease: EASING.TRANSFORM,
-	});
+
+	// フェーズ 1 (t=0): ライトを落として円筒を正面に回す
+	// フェーズ 2 (t=EXPANSION_DELAY): 少し遅らせて拡大 (z 移動 + morph + border/parallax 解除)
+	const EXPANSION_DELAY = 0.2;
+	const tl = gsap.timeline();
+	tl.to(
+		volumeLightAlphaFade,
+		{ value: 0, duration: DURATION.LONG, ease: EASING.TRANSFORM },
+		0,
+	);
+	tl.to(
+		galleryGroup.rotation,
+		{ y: targetRotationY, duration: DURATION.BASE, ease: EASING.TRANSFORM },
+		0,
+	);
+	tl.to(
+		galleryGroup.position,
+		{ z: targetPositionZ, duration: DURATION.BASE, ease: EASING.TRANSFORM },
+		EXPANSION_DELAY,
+	);
+	tl.to(
+		coverMaterial.uniforms.uParallaxIntensity,
+		{ value: 0, duration: DURATION.BASE, ease: EASING.TRANSFORM },
+		EXPANSION_DELAY,
+	);
+	tl.to(
+		coverMaterial.uniforms.uBorderWidth,
+		{ value: 0, duration: DURATION.BASE, ease: EASING.TRANSFORM },
+		EXPANSION_DELAY,
+	);
+	morphToFlat(plane, EXPANSION_DELAY);
 
 	setAutoRotating(false);
 	setDragEnabled(false);
@@ -170,22 +172,7 @@ const zoomIn = (plane: THREE.Mesh): void => {
 };
 
 const zoomOut = (): void => {
-	// galleryGroup を元の姿勢に戻す (カメラは動かさない)
-	// unpause は onComplete で行う。tween 中に unpause すると updateGalleryRotation の
-	// 内挿 (rotation.y += (targetRotation - rotation.y) * 0.1) が gsap tween と競合して
-	// "ぐいっと" 引っ張られる。(onMouseMoveTilt 側は overwrite:"auto" にしたので、
-	// rotation.y / position.z の tween は同時に走っていても kill されない)
-	gsap.to(galleryGroup.rotation, {
-		y: originalGalleryRotationY,
-		duration: DURATION.BASE,
-		ease: EASING.TRANSFORM,
-		onComplete: () => {
-			setAutoRotating(true);
-			setDragEnabled(true);
-			setRotationPaused(false);
-		},
-	});
-
+	// rotation.y は元に戻さず、current の位置 (クリックしたプレーンが正面) を保持する
 	if (activePlane) {
 		// パララックスとボーダーを元に戻す
 		const materials = activePlane.material as THREE.Material[];
@@ -200,9 +187,9 @@ const zoomOut = (): void => {
 			duration: DURATION.BASE,
 			ease: EASING.TRANSFORM,
 		});
-		gsap.to(galleryLightFade, {
+		gsap.to(volumeLightAlphaFade, {
 			value: 1,
-			duration: DURATION.BASE,
+			duration: DURATION.EXTRA_LONG,
 			ease: EASING.TRANSFORM,
 		});
 
@@ -219,10 +206,21 @@ const zoomOut = (): void => {
 		duration: DURATION.BASE,
 		ease: EASING.TRANSFORM,
 	});
+
+	// 他の tween 完了後にオート回転を再開する。この時点で targetRotation を現在の
+	// rotation.y に合わせておかないと、内挿が過去の targetRotation に向かって
+	// 引っ張り、せっかく中央に持ってきたプレーンがズレてしまう
+	gsap.delayedCall(DURATION.BASE, () => {
+		setTargetRotation(galleryGroup.rotation.y);
+		setAutoRotating(true);
+		setDragEnabled(true);
+		setRotationPaused(false);
+	});
+
 	isZoomed = false;
 };
 
-const morphToFlat = (plane: THREE.Mesh): void => {
+const morphToFlat = (plane: THREE.Mesh, delay = 0): void => {
 	const geometry = plane.geometry as THREE.BoxGeometry;
 	const data = geometry.userData as CurvedPlaneData;
 	const position = geometry.attributes.position;
@@ -231,6 +229,7 @@ const morphToFlat = (plane: THREE.Mesh): void => {
 
 	gsap.to(currentPositions, {
 		value: 1,
+		delay,
 		duration: DURATION.BASE,
 		ease: EASING.TRANSFORM,
 		onUpdate: () => {
