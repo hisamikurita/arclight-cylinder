@@ -8,16 +8,15 @@ A cylindrical gallery built with Three.js, featuring floor reflection, volumetri
 
 ## Usage
 
-* Clone repository<br>
-* Install Node.js<br>
-
-* Run following commands<br>
+* Clone repository
+* Install Node.js
+* Run following commands
 ```
   pnpm install
   pnpm dev
 ```
 
-* Before deploying, run command for production.<br>
+* Before deploying, run command for production.
 ```
   pnpm build 
 ```
