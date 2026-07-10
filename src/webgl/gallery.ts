@@ -9,6 +9,7 @@ import {
 } from "./constants";
 import { camera, scene } from "./core";
 import { createCurvedPlaneGeometry } from "./geometry";
+import { computeShaderLightDir } from "./lights";
 import { createCoverMaterial, updateCoverMaterialImageSize } from "./material";
 
 export type MediaItem = (
@@ -212,20 +213,15 @@ export const updateParallax = (planes: THREE.Mesh[]): void => {
 	}
 };
 
+const lightPos = new THREE.Vector3();
+const lightColor = new THREE.Color();
+
 export const updateGalleryLightUniforms = (): void => {
 	// 最初のライト（メインライト）を使用
 	const light = BACKGROUND_LIGHTS[0];
-	const pos3D = light.pos3D;
-	const lightPos = new THREE.Vector3(pos3D.x, pos3D.y, pos3D.z);
-	const lightColor = new THREE.Color(light.colorL);
-
-	// アングルからスポットライト方向を計算
-	const angleX = THREE.MathUtils.degToRad(light.spotAngleX);
-	const angleY = THREE.MathUtils.degToRad(light.spotAngleY);
-	const lightDir = new THREE.Vector3(0, 0, -1); // 基本方向: 前方
-	lightDir.applyAxisAngle(new THREE.Vector3(1, 0, 0), angleX); // X軸回転（上下）
-	lightDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), angleY); // Y軸回転（左右）
-	lightDir.normalize();
+	lightPos.set(light.pos3D.x, light.pos3D.y, light.pos3D.z);
+	lightColor.setHex(light.colorL);
+	const lightDir = computeShaderLightDir(light.spotAngleX, light.spotAngleY);
 
 	for (const plane of galleryPlanes) {
 		const materials = plane.material as THREE.Material[];
