@@ -2,6 +2,8 @@
 
 A cylindrical gallery built with Three.js, featuring floor reflection, volumetric light, and parallax effects.
 
+🤖 Generated with Claude Code Opus 4.7 
+
 - <a href="https://hisamikurita.github.io/arclight-cylinder/">DEMO</a>
 
 ![ArcLight Cylinder](./public/ogp.png)
