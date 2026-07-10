@@ -1,7 +1,7 @@
 import gsap from "gsap";
 import * as THREE from "three";
-import { DURATION, EASING, GALLERY, PARALLAX, PLANE } from "./constants";
-import { camera, renderer } from "./core";
+import { CAMERA, DURATION, EASING, FOG, GALLERY, PARALLAX, PLANE } from "./constants";
+import { camera, renderer, scene } from "./core";
 import { galleryGroup } from "./gallery";
 import type { CurvedPlaneData } from "./geometry";
 import { volumeLightAlphaFade } from "./lights";
@@ -128,8 +128,47 @@ const triggerGlitchBurst = (uniform: { value: number }): void => {
 	uniform.value = 0;
 	gsap
 		.timeline()
-		.to(uniform, { value: 1, duration: DURATION.EXTRA_LONG, ease: EASING.TRANSFORM })
+		.to(uniform, { value: 1, duration: DURATION.EXTRA_LONG * 1.25, ease: EASING.TRANSFORM })
 		.set(uniform, { value: 0 });
+};
+
+// zoomIn 発火時に波紋 (uZoomBurst) と RGB シフト + グリッチ (uGlitchRadius) を
+// 同時に中央から 1 回広げる
+const triggerZoomBurst = (material: THREE.ShaderMaterial): void => {
+	triggerGlitchBurst(material.uniforms.uGlitchRadius as { value: number });
+	triggerGlitchBurst(material.uniforms.uZoomBurst as { value: number });
+};
+
+// zoomIn 時にホバー状態のエフェクト (黒円 + 反射/emissive ブースト) を 0 へフェード。
+// fadeHoverCircle は target=0 で uGlitchRadius を kill するため、
+// zoom burst と競合しないようホバー系 uniform のみ個別に落とす
+const fadeHoverEffectsToZero = (plane: THREE.Mesh): void => {
+	const materials = plane.material as THREE.Material[];
+	const cover = materials[4] as THREE.ShaderMaterial;
+	gsap.to(cover.uniforms.uHoverCircle, {
+		value: 0,
+		duration: DURATION.BASE,
+		ease: EASING.TRANSFORM,
+		overwrite: true,
+	});
+	gsap.to(cover.uniforms.uHoverAlpha, {
+		value: 0,
+		duration: DURATION.BASE,
+		ease: EASING.MATERIAL,
+		overwrite: true,
+	});
+	gsap.to(cover.uniforms.uReflectionBoost, {
+		value: 0,
+		duration: DURATION.BASE,
+		ease: EASING.TRANSFORM,
+		overwrite: true,
+	});
+	gsap.to(cover.uniforms.uEmissiveBoost, {
+		value: 0,
+		duration: DURATION.LONG,
+		ease: EASING.TRANSFORM,
+		overwrite: true,
+	});
 };
 
 const fadeHoverCircle = (plane: THREE.Mesh, target: number): void => {
@@ -293,19 +332,70 @@ const zoomIn = (
 	const targetRotationY = currentY + diff;
 
 	// プレーンをビューポートに収めるための距離を計算し、
-	// galleryGroup を z 方向に前後させて距離を合わせる (カメラは動かさない)
+	// galleryGroup を z 方向に前後させて距離を合わせる。
+	// reveal 中は camera.z がまだ tween 途中なので、最終位置 (CAMERA.INITIAL_Z) を基準に計算し、
+	// reveal 側の camera tween は overwrite:true で上書きして最終値まで一気に運ぶ
 	const geometry = plane.geometry as THREE.BoxGeometry;
 	const params = geometry.parameters;
 	const distance = calculateCameraDistance(params.width, params.height);
-	const targetPositionZ = camera.position.z - distance - GALLERY.RADIUS;
+	const targetPositionZ = CAMERA.INITIAL_Z - distance - GALLERY.RADIUS;
 
 	const materials = plane.material as THREE.Material[];
 	const coverMaterial = materials[4] as THREE.ShaderMaterial;
+
+	// zoomIn の合図として波紋 + RGB シフト + グリッチを中央から 1 回同時に広げる
+	triggerZoomBurst(coverMaterial);
+	// ホバー中の黒円 / reflection / emissive ブーストは zoomIn では邪魔になるので落とす
+	fadeHoverEffectsToZero(plane);
+	lastHoveredPlane = null;
 
 	// フェーズ 1 (t=0): ライトを落として円筒を正面に回す
 	// フェーズ 2 (t=EXPANSION_DELAY): 少し遅らせて拡大 (z 移動 + morph + border/parallax 解除)
 	const EXPANSION_DELAY = 0.2;
 	const tl = gsap.timeline();
+
+	// reveal 中に zoomIn した場合、reveal 側の camera / fog tween を overwrite で吸収して
+	// 最終状態まで一気に運ぶ。reveal 完了後の zoomIn では既に最終値なので実質 no-op
+	tl.to(
+		camera.position,
+		{
+			y: CAMERA.INITIAL_Y,
+			z: CAMERA.INITIAL_Z,
+			duration: DURATION.BASE,
+			ease: EASING.TRANSFORM,
+			overwrite: true,
+		},
+		0,
+	);
+	tl.to(
+		camera.rotation,
+		{ x: 0, duration: DURATION.BASE, ease: EASING.TRANSFORM, overwrite: true },
+		0,
+	);
+	tl.to(
+		camera,
+		{
+			fov: CAMERA.FOV,
+			duration: DURATION.BASE,
+			ease: EASING.TRANSFORM,
+			overwrite: true,
+			onUpdate: () => camera.updateProjectionMatrix(),
+		},
+		0,
+	);
+	if (scene.fog instanceof THREE.Fog) {
+		tl.to(
+			scene.fog,
+			{
+				far: FOG.FAR,
+				duration: DURATION.BASE,
+				ease: EASING.TRANSFORM,
+				overwrite: true,
+			},
+			0,
+		);
+	}
+
 	tl.to(
 		volumeLightAlphaFade,
 		{ value: 0, duration: DURATION.LONG, ease: EASING.TRANSFORM },
@@ -417,38 +507,52 @@ const zoomOut = (): void => {
 	notifyZoomChange();
 };
 
+// プレーンごとの morph 進捗 (0 = curved, 1 = flat) を保持。
+// zoomIn/zoomOut を短時間で切り替えても、現在値からターゲット (0 or 1) へ
+// tween を継ぐことで頂点位置のジャンプを防ぐ
+const morphProgress = new WeakMap<THREE.Mesh, { value: number }>();
+
+const applyMorph = (plane: THREE.Mesh, t: number): void => {
+	const geometry = plane.geometry as THREE.BoxGeometry;
+	const { flatPositions, curvedPositions } =
+		geometry.userData as CurvedPlaneData;
+	const position = geometry.attributes.position;
+	for (let i = 0; i < position.count; i++) {
+		const idx = i * 3;
+		position.setXYZ(
+			i,
+			curvedPositions[idx] + (flatPositions[idx] - curvedPositions[idx]) * t,
+			curvedPositions[idx + 1] +
+				(flatPositions[idx + 1] - curvedPositions[idx + 1]) * t,
+			curvedPositions[idx + 2] +
+				(flatPositions[idx + 2] - curvedPositions[idx + 2]) * t,
+		);
+	}
+	position.needsUpdate = true;
+	geometry.computeVertexNormals();
+};
+
 const morphPlane = (
 	plane: THREE.Mesh,
 	target: "flat" | "curved",
 	delay = 0,
 ): void => {
-	const geometry = plane.geometry as THREE.BoxGeometry;
-	const { flatPositions, curvedPositions } =
-		geometry.userData as CurvedPlaneData;
-	const position = geometry.attributes.position;
+	let progress = morphProgress.get(plane);
+	if (!progress) {
+		progress = { value: 0 };
+		morphProgress.set(plane, progress);
+	}
+	const targetValue = target === "flat" ? 1 : 0;
+	// 残り距離に応じて duration を短縮 (ほぼ完了状態から折り返す場合の遅延を防ぐ)
+	const remaining = Math.abs(targetValue - progress.value);
+	const duration = DURATION.BASE * Math.max(remaining, 0.35);
 
-	const from = target === "flat" ? curvedPositions : flatPositions;
-	const to = target === "flat" ? flatPositions : curvedPositions;
-
-	const progress = { value: 0 };
 	gsap.to(progress, {
-		value: 1,
+		value: targetValue,
 		delay,
-		duration: DURATION.BASE,
+		duration,
 		ease: EASING.TRANSFORM,
-		onUpdate: () => {
-			const t = progress.value;
-			for (let i = 0; i < position.count; i++) {
-				const idx = i * 3;
-				position.setXYZ(
-					i,
-					from[idx] + (to[idx] - from[idx]) * t,
-					from[idx + 1] + (to[idx + 1] - from[idx + 1]) * t,
-					from[idx + 2] + (to[idx + 2] - from[idx + 2]) * t,
-				);
-			}
-			position.needsUpdate = true;
-			geometry.computeVertexNormals();
-		},
+		overwrite: "auto",
+		onUpdate: () => applyMorph(plane, progress.value),
 	});
 };

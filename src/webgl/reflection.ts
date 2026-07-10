@@ -12,11 +12,11 @@ import {
 import { camera, renderer, scene } from "./core";
 import { galleryGroup, galleryPlanes, gallerySideMaterial } from "./gallery";
 import { computeShaderLightDir } from "./lights";
-import blurFragmentShader from "./shaders/blur.frag?raw";
-import compositeFragmentShader from "./shaders/composite.frag?raw";
-import floorFragmentShader from "./shaders/floor.frag?raw";
-import floorVertexShader from "./shaders/floor.vert?raw";
-import fullscreenVertexShader from "./shaders/fullscreen.vert?raw";
+import blurFragmentShader from "./shaders/blur.frag";
+import compositeFragmentShader from "./shaders/composite.frag";
+import floorFragmentShader from "./shaders/floor.frag";
+import floorVertexShader from "./shaders/floor.vert";
+import fullscreenVertexShader from "./shaders/fullscreen.vert";
 
 // 床面（ミラー）
 export let floorMesh: THREE.Mesh;

@@ -132,6 +132,8 @@ export const finishLoading = (planes: THREE.Mesh[]): void => {
 
 	// 「正面を向く」アニメが始まるタイミングでマウス系インタラクションを解禁
 	// (mouse tilt / sway, ドラッグ回転, クリックでズーム, ホバー円/リップル)
+	// reveal 中に zoomIn した場合は zoomIn 側の overwrite:true で camera tween を
+	// 上書きして最終位置まで一気に運ぶ
 	gsap.delayedCall(FACE_FORWARD_DELAY, () => {
 		setupInteractions(planes);
 		setupGalleryRotation();

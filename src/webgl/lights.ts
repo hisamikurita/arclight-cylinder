@@ -1,8 +1,8 @@
 import * as THREE from "three";
 import { BACKGROUND_LIGHTS, VOLUME_LIGHT_PARAMS } from "./constants";
 import { scene } from "./core";
-import volumeLightFragmentShader from "./shaders/volumeLight.frag?raw";
-import volumeLightVertexShader from "./shaders/volumeLight.vert?raw";
+import volumeLightFragmentShader from "./shaders/volumeLight.frag";
+import volumeLightVertexShader from "./shaders/volumeLight.vert";
 
 type BackgroundLightEntry = {
 	light: THREE.SpotLight;

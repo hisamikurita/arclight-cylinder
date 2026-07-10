@@ -6,8 +6,8 @@ import {
 	PLANE,
 	VIGNETTE_PARAMS,
 } from "./constants";
-import fragmentShader from "./shaders/plane.frag?raw";
-import vertexShader from "./shaders/plane.vert?raw";
+import fragmentShader from "./shaders/plane.frag";
+import vertexShader from "./shaders/plane.vert";
 
 export const createCoverMaterial = (
 	texture: THREE.Texture,
@@ -39,6 +39,9 @@ export const createCoverMaterial = (
 			// Chromatic aberration + slice glitch の衝撃波半径 (0..1)。
 			// hover-in 時に JS 側で 0→1 を 2 回繰り返して中央から放射状に発火させる
 			uGlitchRadius: { value: 0 },
+			// zoomIn 発火時に中央から広がる波紋の衝撃波半径 (0..1)。
+			// 頂点変位でリング状の波を 1 回だけ広げる
+			uZoomBurst: { value: 0 },
 			// ホバー中に反射描画の brightness に足し込む加算値 (renderWithReflection 側で使用)
 			uReflectionBoost: { value: 0 },
 			// ホバー中に emissive に足し込む加算値 (updateParallax 側で加算)
