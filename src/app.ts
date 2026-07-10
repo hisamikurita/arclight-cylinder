@@ -57,8 +57,8 @@ if (IS_MOBILE) {
 	p.HEIGHT = PLANE.HEIGHT * MOBILE_SCALE;
 	const g = GALLERY as unknown as { RADIUS: number };
 	g.RADIUS = GALLERY.RADIUS * MOBILE_SCALE;
-	// モバイルは自動回転速度を 1.2 倍に (小さい画面でも動きを感じられるよう)
-	setAutoRotationSpeed(ROTATION.AUTO_SPEED * 1.2);
+	// モバイルは自動回転速度を 1.3 倍に (小さい画面でも動きを感じられるよう)
+	setAutoRotationSpeed(ROTATION.AUTO_SPEED * 1.3);
 }
 
 // === LOADING 初期状態 ===
