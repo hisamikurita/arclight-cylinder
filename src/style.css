@@ -109,3 +109,42 @@ canvas {
 	display: flex;
 	gap: 8px;
 }
+
+/* Mobile: サイズと余白を全体的にコンパクト化。狭い画面でも情報 + ナビが被らないよう
+   info の max-width を絞り、フォントとボタンも一回り小さく */
+@media (max-width: 768px) {
+	.zoom-ui-back,
+	.zoom-ui-prev,
+	.zoom-ui-next {
+		padding: 8px 14px;
+		font-size: 11px;
+		letter-spacing: 0.06em;
+	}
+
+	.zoom-ui-back {
+		top: 16px;
+		left: 16px;
+	}
+
+	.zoom-ui-info {
+		bottom: 76px; /* nav の上に積む: nav bottom(16) + ボタン高さ(~34) + gap(~26) */
+		left: 16px;
+		right: 16px;
+		max-width: none;
+		gap: 4px;
+	}
+
+	.zoom-ui-title {
+		font-size: 16px;
+	}
+
+	.zoom-ui-credit {
+		font-size: 10px;
+	}
+
+	.zoom-ui-nav {
+		bottom: 16px;
+		right: 16px;
+		gap: 6px;
+	}
+}

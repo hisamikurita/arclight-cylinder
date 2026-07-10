@@ -12,6 +12,7 @@ import {
 	EASING,
 	floorAlphaFade,
 	FOG,
+	GALLERY,
 	galleryPlanes,
 	gallerySideMaterial,
 	handleResize,
@@ -40,6 +41,21 @@ import {
 
 // レンダラーを初期化
 initRenderer();
+
+// === モバイル判定 & サイズ調整 ===
+// スマホ幅ではプレーンとギャラリー半径を少し縮小して、狭いビューポートに収まるようにする
+const IS_MOBILE = window.matchMedia("(max-width: 768px)").matches;
+const MOBILE_SCALE = 0.75;
+if (IS_MOBILE) {
+	// PLANE / GALLERY は `as const` で readonly だが、runtime では書き換えできるので
+	// 型アサーションで縮小値を注入する
+	// (interactions.ts / reflection.ts など runtime で参照する箇所も追従する)
+	const p = PLANE as unknown as { WIDTH: number; HEIGHT: number };
+	p.WIDTH = PLANE.WIDTH * MOBILE_SCALE;
+	p.HEIGHT = PLANE.HEIGHT * MOBILE_SCALE;
+	const g = GALLERY as unknown as { RADIUS: number };
+	g.RADIUS = GALLERY.RADIUS * MOBILE_SCALE;
+}
 
 // === LOADING 初期状態 ===
 // 真上から円筒を見下ろすアングルにして、フレーム色を白、ライト・反射を off にする。
@@ -122,13 +138,23 @@ const mediaItems: MediaItem[] = [
 	},
 ];
 // メディア load 完了カウント。全部揃ったら finishLoading を発火
+// (createGallery の default options は Gallery.ts の import 時点でキャプチャされて
+// いるので、モバイル縮小後の PLANE/GALLERY を確実に反映させるため明示的に渡す)
 let loadedMediaCount = 0;
-const planes = createGallery(mediaItems, {}, () => {
-	loadedMediaCount++;
-	if (loadedMediaCount >= mediaItems.length) {
-		finishLoading();
-	}
-});
+const planes = createGallery(
+	mediaItems,
+	{
+		planeWidth: PLANE.WIDTH,
+		planeHeight: PLANE.HEIGHT,
+		radius: GALLERY.RADIUS,
+	},
+	() => {
+		loadedMediaCount++;
+		if (loadedMediaCount >= mediaItems.length) {
+			finishLoading();
+		}
+	},
+);
 
 // フレーム (プレーン側面 + ボーダー) を白でスタート
 updateGallerySideColor(0xffffff);
