@@ -19,6 +19,31 @@ canvas {
 	display: block;
 }
 
+.original-credit {
+	position: fixed;
+	bottom: 16px;
+	left: 16px;
+	z-index: 20;
+	font-size: 12px;
+	letter-spacing: 0.04em;
+	color: rgba(255, 255, 255, 0.55);
+	text-decoration: none;
+	transition:
+		color 0.2s ease,
+		opacity 0.3s ease;
+}
+
+.original-credit:hover {
+	color: rgba(255, 255, 255, 0.9);
+	text-decoration: underline;
+}
+
+/* ズーム UI 表示中は左下の info と重なるので隠す */
+body:has(#zoom-ui.visible) .original-credit {
+	opacity: 0;
+	pointer-events: none;
+}
+
 /* Zoom UI overlay */
 #zoom-ui {
 	position: fixed;
